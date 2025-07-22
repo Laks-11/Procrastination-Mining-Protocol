@@ -218,9 +218,33 @@ contract ProcrastinationMiningProtocol {
         return (nextTaskId, totalProtocolStake, rewardPool);
     }
     
+    // Function 6: Extend task deadline (with penalty)
+    function extendTaskDeadline(uint256 _taskId, uint256 _additionalHours) external payable validTask(_taskId) taskNotCompleted(_taskId) {
+        Task storage task = tasks[_taskId];
+        require(block.timestamp <= task.deadline, "Cannot extend expired task");
+        require(_additionalHours > 0 && _additionalHours <= 24, "Extension must be 1-24 hours");
+        
+        // Calculate extension penalty (50% of original stake)
+        uint256 extensionPenalty = task.stakeAmount / 2;
+        require(msg.value >= extensionPenalty, "Insufficient penalty payment");
+        
+        // Extend deadline
+        task.deadline += (_additionalHours * 1 hours);
+        
+        // Add penalty to reward pool
+        rewardPool += msg.value;
+        
+        // Reset current streak as penalty for extending
+        userStats[msg.sender].currentStreak = 0;
+        
+        emit TaskCreated(_taskId, msg.sender, task.description, task.stakeAmount, task.deadline); // Reuse event for extension
+        emit StreakUpdated(msg.sender, 0);
+    }
+    
     // Emergency functions
     function emergencyWithdraw() external {
         require(msg.sender == address(this), "Only contract can call");
         payable(msg.sender).transfer(address(this).balance);
     }
-}
+}  
+//"added one function suggested by chatgpt"
